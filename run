@@ -1,19 +1,41 @@
-# Provjera instaliranih aplikacija
-$keywords = @("asseco", "signergy", "unicredit", "e-baplus", "scmanagment", "safenet")
+# Nove verzije aplikacija
+$latestVersions = @{
+    "asseco"      = "3.17"
+    "safenet"     = "8.3"
+    "scmanagment" = "6.3"
+    "activ"       = "7.1"
+}
+
+# Keyword mapping
+$keywords = @("asseco", "signergy", "unicredit", "e-baplus", "scmanagment", "safenet", "activ")
+$appFlags = @{}
+
+# Citanje iz registra
 $uninstallPaths = @(
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
     "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
 )
-$foundApps = @()
+
+$found = @{}
 foreach ($path in $uninstallPaths) {
     $apps = Get-ItemProperty $path -ErrorAction SilentlyContinue
     foreach ($app in $apps) {
         $name = $app.DisplayName
         $version = $app.DisplayVersion
-        if ($name) {
-            foreach ($keyword in $keywords) {
-                if ($name.ToLower().Contains($keyword)) {
-                    $foundApps += "$name - Verzija: $version"
+        if ($name -and $version) {
+            foreach ($key in $keywords) {
+                if ($name.ToLower().Contains($key)) {
+                    $verCurrent = ($version -split "\.")[0..1] -join "."
+                    $verExpected = $latestVersions[$key]
+                    $status = if ($verExpected -and ([version]$verCurrent -lt [version]$verExpected)) {
+                        "upgrade"
+                    } elseif ($verExpected -and ([version]$verCurrent -gt [version]$verExpected)) {
+                        "ignore"
+                    } else {
+                        "ignore"
+                    }
+                    $found[$key] = "$name - Verzija: $version ($status)"
+                    $appFlags[$key] = $status
                     break
                 }
             }
@@ -21,40 +43,56 @@ foreach ($path in $uninstallPaths) {
     }
 }
 
+# Provjera aplikacija koje nedostaju
+foreach ($key in $latestVersions.Keys) {
+    if (-not $appFlags.ContainsKey($key)) {
+        $appFlags[$key] = "install"
+        $found[$key] = "$key - nije pronadjen (install)"
+    }
+}
 
+# Detekcija SafeNet / Activ logike
+if (($appFlags["safenet"] -eq "install") -and ($appFlags["activ"] -eq "install")) {
+    $choice = Read-Host "Da li koristite Karticu(K) ili USB(U) [Default: USB]"
+    $choice = ($choice + "").ToLower()
+    if ($choice -in @("k", "kartica", "c", "card")) {
+        $appFlags["activ"] = "install"
+        $appFlags["safenet"] = "ignore"
+    } else {
+        $appFlags["safenet"] = "install"
+        $appFlags["activ"] = "ignore"
+    }
+}
+
+# Pokretanje logike
 chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
 
 Clear-Host
 
-# Simple blocky header using plain characters
+# Header
 Write-Host "==============================" -ForegroundColor Green
 Write-Host " EbaPlus Automatski Installer " -ForegroundColor Green
 Write-Host "==============================" -ForegroundColor Green
 Write-Host ""
 
-# Highlighted path text
+# Folder kreacija
 Write-Host -NoNewline "Kreirali smo folder " -ForegroundColor Green
 Write-Host -NoNewline "C:\eba" -ForegroundColor Yellow
-Write-Host " unutar kojeg će se nalaziti sve potrebne instalacije, upute i linkovi.`n" -ForegroundColor Green
+Write-Host " unutar kojeg ce se nalaziti sve potrebne instalacije, upute i linkovi.`n" -ForegroundColor Green
 
-# Create folder
 $dest = "C:\eba"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 
-# Architecture detection (silent)
+# Log inicijalizacija
 $is64Bit = [Environment]::Is64BitOperatingSystem
 $logPath = "$dest\log.txt"
-Add-Content $logPath "`n[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Sistem: $([Int]$is64Bit * 32 + 32)-bitni OS detektovan."
+Add-Content $logPath "`n[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Sistem: $([Int]$is64Bit * 32 + 32)-bitni OS detektovan.`n"
 
-# Zapis instaliranih aplikacija u log
-if ($foundApps.Count -gt 0) {
-    Add-Content $logPath "`n[INFO] Pronađene instalacije:"
-    $foundApps | ForEach-Object { Add-Content $logPath " - $_" }
-} else {
-    Add-Content $logPath "`n[INFO] Nisu pronađene nijedne od traženih instalacija."
+Add-Content $logPath "[INFO] Stanje aplikacija:"
+foreach ($entry in $found.GetEnumerator()) {
+    Add-Content $logPath " - $($entry.Value)"
 }
 
-# Ask question
-$choice = Read-Host "Instalacija podrske za Karticu(K) ili za USB(U) [Default: USB]"
-$choice = ($choice + "").ToLower()
+# DEBUG prikaz (privremeno)
+# $appFlags | Format-Table
