@@ -52,7 +52,17 @@ foreach ($key in $latestVersions.Keys) {
 }
 
 # Detekcija SafeNet / Activ logike
-if (($appFlags["safenet"] -eq "install") -and ($appFlags["activ"] -eq "install")) {
+$safenetStatus = $appFlags["safenet"]
+$activStatus   = $appFlags["activ"]
+
+if (($safenetStatus -ne "install") -and ($activStatus -ne "install")) {
+    # Obe aplikacije su prisutne
+    Write-Host "Podrska za USB i Karticu je instalirana na ovom racunalu." -ForegroundColor Cyan
+    $appFlags["safenet"] = "ignore"
+    $appFlags["activ"] = "ignore"
+}
+elseif ($safenetStatus -eq "install" -and $activStatus -eq "install") {
+    # Nijedna nije instalirana – pitaj korisnika
     $choice = Read-Host "Da li koristite Karticu(K) ili USB(U) [Default: USB]"
     $choice = ($choice + "").ToLower()
     if ($choice -in @("k", "kartica", "c", "card")) {
@@ -63,6 +73,15 @@ if (($appFlags["safenet"] -eq "install") -and ($appFlags["activ"] -eq "install")
         $appFlags["activ"] = "ignore"
     }
 }
+elseif ($safenetStatus -ne "install") {
+    # SafeNet je tu, ignorisi Activ
+    $appFlags["activ"] = "ignore"
+}
+elseif ($activStatus -ne "install") {
+    # Activ je tu, ignorisi SafeNet
+    $appFlags["safenet"] = "ignore"
+}
+
 
 # Pokretanje logike
 chcp 65001 > $null
