@@ -6,15 +6,21 @@ $uninstallPaths = @(
 )
 $foundApps = @()
 foreach ($path in $uninstallPaths) {
-    $apps = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object {
-        $_.DisplayName -and ($keywords | Where-Object { $_ -and $_.ToLower() -in $_.DisplayName.ToLower() })
-    }
+    $apps = Get-ItemProperty $path -ErrorAction SilentlyContinue
     foreach ($app in $apps) {
         $name = $app.DisplayName
         $version = $app.DisplayVersion
-        $foundApps += "$name - Verzija: $version"
+        if ($name) {
+            foreach ($keyword in $keywords) {
+                if ($name.ToLower().Contains($keyword)) {
+                    $foundApps += "$name - Verzija: $version"
+                    break
+                }
+            }
+        }
     }
 }
+
 
 chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
