@@ -1,3 +1,21 @@
+# Provjera instaliranih aplikacija
+$keywords = @("asseco", "signergy", "unicredit", "e-baplus", "scmanagment", "safenet")
+$uninstallPaths = @(
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+)
+$foundApps = @()
+foreach ($path in $uninstallPaths) {
+    $apps = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object {
+        $_.DisplayName -and ($keywords | Where-Object { $_ -and $_.ToLower() -in $_.DisplayName.ToLower() })
+    }
+    foreach ($app in $apps) {
+        $name = $app.DisplayName
+        $version = $app.DisplayVersion
+        $foundApps += "$name - Verzija: $version"
+    }
+}
+
 chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
 
@@ -23,6 +41,14 @@ $is64Bit = [Environment]::Is64BitOperatingSystem
 $logPath = "$dest\log.txt"
 Add-Content $logPath "`n[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Sistem: $([Int]$is64Bit * 32 + 32)-bitni OS detektovan."
 
+# Zapis instaliranih aplikacija u log
+if ($foundApps.Count -gt 0) {
+    Add-Content $logPath "`n[INFO] Pronađene instalacije:"
+    $foundApps | ForEach-Object { Add-Content $logPath " - $_" }
+} else {
+    Add-Content $logPath "`n[INFO] Nisu pronađene nijedne od traženih instalacija."
+}
+
 # Ask question
-$choice = Read-Host "Instalacija podrške za Karticu(K) ili za USB(U) [Default: USB]"
+$choice = Read-Host "Instalacija podrske za Karticu(K) ili za USB(U) [Default: USB]"
 $choice = ($choice + "").ToLower()
