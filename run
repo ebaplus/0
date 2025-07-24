@@ -1,1 +1,22 @@
-Write-Output "hello it's working somewhat well"
+Clear-Host
+
+# Display welcome message in two rows
+Write-Host "============================================="
+Write-Host " Dobrodošli u EbaPlus Automatski Installer! "
+Write-Host "============================================="
+Write-Host "`nKreirali smo folder C:\eba unutar kojeg će se nalaziti sve potrebne instalacije, upute i linkovi.`n"
+
+# Create folder
+$dest = "C:\eba"
+New-Item -ItemType Directory -Force -Path $dest | Out-Null
+
+# Detect architecture silently
+$is64Bit = [Environment]::Is64BitOperatingSystem
+
+# Log to file
+$logPath = "$dest\log.txt"
+Add-Content $logPath "`n[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Sistem: $([Int]$is64Bit * 32 + 32)-bitni OS detektovan."
+
+# Ask for USB or Card
+$choice = Read-Host "Instalacija podrske za Karticu(K) ili za USB(U) [Default: USB]"
+$choice = ($choice + "").ToLower()
