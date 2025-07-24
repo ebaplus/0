@@ -1,13 +1,15 @@
 chcp 65001 > $null
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+
 Clear-Host
 
-# Header
-Write-Host "██████╗ ██████╗  █████╗ ██████╗ ██╗     ██╗   ██╗███████╗" -ForegroundColor Green
-Write-Host "██╔══██╗██╔══██╗██╔══██╗██╔══██╗██║     ██║   ██║██╔════╝" -ForegroundColor Green
-Write-Host "Dobrodošli u EbaPlus Automatski Installer!" -ForegroundColor Green
+# Simple blocky header using plain characters
+Write-Host "==============================" -ForegroundColor Green
+Write-Host " EbaPlus Automatski Installer " -ForegroundColor Green
+Write-Host "==============================" -ForegroundColor Green
 Write-Host ""
 
-# Highlighted path message
+# Highlighted path text
 Write-Host -NoNewline "Kreirali smo folder " -ForegroundColor Green
 Write-Host -NoNewline "C:\eba" -ForegroundColor Yellow
 Write-Host " unutar kojeg će se nalaziti sve potrebne instalacije, upute i linkovi.`n" -ForegroundColor Green
@@ -16,13 +18,11 @@ Write-Host " unutar kojeg će se nalaziti sve potrebne instalacije, upute i link
 $dest = "C:\eba"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 
-# Detect architecture silently
+# Architecture detection (silent)
 $is64Bit = [Environment]::Is64BitOperatingSystem
-
-# Log to file
 $logPath = "$dest\log.txt"
 Add-Content $logPath "`n[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Sistem: $([Int]$is64Bit * 32 + 32)-bitni OS detektovan."
 
-# Ask for USB or Card
+# Ask question
 $choice = Read-Host "Instalacija podrške za Karticu(K) ili za USB(U) [Default: USB]"
 $choice = ($choice + "").ToLower()
