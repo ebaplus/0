@@ -1,10 +1,16 @@
+chcp 65001 > $null
 Clear-Host
 
-# Display welcome message in two rows
-Write-Host "============================================="
-Write-Host " Dobrodošli u EbaPlus Automatski Installer! "
-Write-Host "============================================="
-Write-Host "`nKreirali smo folder C:\eba unutar kojeg će se nalaziti sve potrebne instalacije, upute i linkovi.`n"
+# Header
+Write-Host "██████╗ ██████╗  █████╗ ██████╗ ██╗     ██╗   ██╗███████╗" -ForegroundColor Green
+Write-Host "██╔══██╗██╔══██╗██╔══██╗██╔══██╗██║     ██║   ██║██╔════╝" -ForegroundColor Green
+Write-Host "Dobrodošli u EbaPlus Automatski Installer!" -ForegroundColor Green
+Write-Host ""
+
+# Highlighted path message
+Write-Host -NoNewline "Kreirali smo folder " -ForegroundColor Green
+Write-Host -NoNewline "C:\eba" -ForegroundColor Yellow
+Write-Host " unutar kojeg će se nalaziti sve potrebne instalacije, upute i linkovi.`n" -ForegroundColor Green
 
 # Create folder
 $dest = "C:\eba"
@@ -18,5 +24,5 @@ $logPath = "$dest\log.txt"
 Add-Content $logPath "`n[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Sistem: $([Int]$is64Bit * 32 + 32)-bitni OS detektovan."
 
 # Ask for USB or Card
-$choice = Read-Host "Instalacija podrske za Karticu(K) ili za USB(U) [Default: USB]"
+$choice = Read-Host "Instalacija podrške za Karticu(K) ili za USB(U) [Default: USB]"
 $choice = ($choice + "").ToLower()
