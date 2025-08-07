@@ -1,0 +1,132 @@
+$choice = Read-Host "Instalacija podrske za Karticu(K) ili za USB(U) [Default: USB]"
+$choice = ($choice + "").ToLower()
+
+$useCard = $false
+switch ($choice) {
+    "k" { $useCard = $true }
+    "c" { $useCard = $true }
+    "kartica" { $useCard = $true }
+    "card" { $useCard = $true }
+    "citac" { $useCard = $true }
+    default { $useCard = $false }
+}
+
+$dest = "C:\eba"
+New-Item -ItemType Directory -Force -Path $dest
+
+Invoke-WebRequest -Uri "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/korporativni_klijenti/Asseco_SignErgy_Unicredit_Installer.exe" -OutFile "$dest\Asseco_SignErgy_Unicredit_Installer.exe"
+
+Start-BitsTransfer -Source "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/e-baPlus%20SCManagement_v6.3.1_x64_bin.zip" -Destination "$dest\e-baPlus_SCManagement.zip"
+Expand-Archive -Path "$dest\e-baPlus_SCManagement.zip" -DestinationPath "$dest" -Force
+Remove-Item "$dest\e-baPlus_SCManagement.zip"
+
+if ($useCard) {
+    Invoke-WebRequest -Uri "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/ActivClient%207.1.0%20x64%20FIX168.exe" -OutFile "$dest\ActivClient.exe"
+} else {
+    Start-BitsTransfer -Source "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/SafeNetAuthenticationClient-8-x64-8.3.msi.zip" -Destination "$dest\SafeNetAuthenticationClient.zip"
+    Expand-Archive -Path "$dest\SafeNetAuthenticationClient.zip" -DestinationPath "$dest" -Force
+    Remove-Item "$dest\SafeNetAuthenticationClient.zip"
+}
+
+$dest = "C:\eba"
+
+# Install Asseco SignErgy silently
+Start-Process "$dest\Asseco_SignErgy_Unicredit_Installer.exe" -ArgumentList "/S /v/qn" -Wait
+
+# Install e-baPlus silently
+Start-Process "$dest\e-baPlus_SCManagement_x64.exe" -ArgumentList "/S /v/qn" -Wait
+
+if ($useCard) {
+    # Try silent install, fallback message if it shows UI
+    try {
+        Start-Process "$dest\ActivClient.exe" -ArgumentList "/quiet /norestart" -Wait
+    } catch {
+        Write-Host "Molimo dovrsite instalaciju ako ju vidite..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 10
+    }
+} else {
+    # Install SafeNetAuthenticationClient silently
+    Start-Process "msiexec.exe" -ArgumentList "/i "$dest\SafeNetAuthenticationClient-8-x64-8.3.msi" /quiet /norestart" -Wait
+}
+
+# Create desktop shortcut
+$desktop = [Environment]::GetFolderPath("Desktop")
+$shortcutPath = "$desktop\e-baPlus.url"
+$url = "https://ebaplus.unicreditbank.ba/ebaPlus/"
+@"
+[InternetShortcut]
+URL=$url
+"@ | Set-Content -Encoding ASCII -Path $shortcutPath
+
+Clear-Host
+
+$answer = Read-Host "Da li vam je potrebna registracija? (Da / Ne) [Default: Ne]"
+switch (($answer + "").ToLower()) {
+    ""      { $normalized = "ne" }
+    "d"     { $normalized = "da" }
+    "da"    { $normalized = "da" }
+    "y"     { $normalized = "da" }
+    "yes"   { $normalized = "da" }
+    "n"     { $normalized = "ne" }
+    "no"    { $normalized = "ne" }
+    "ne"    { $normalized = "ne" }
+}
+
+if ($normalized -eq "da") {
+    Start-Process "https://www.unicreditbank.ba/ebank/registracija/index.html"
+}
+
+# Shortcut creator helper
+function New-InternetShortcut {
+    param ($path, $url)
+    @"
+[InternetShortcut]
+URL=$url
+"@ | Set-Content -Encoding ASCII -Path $path
+}
+
+# Create shortcuts in C:\eba
+New-InternetShortcut -path "$dest\Registracija.url" -url "https://www.unicreditbank.ba/ebank/registracija/index.html"
+New-InternetShortcut -path "$dest\Obnova certifikata.url" -url "https://www.unicreditbank.ba/ebank/reizdavanjeBH/"
+New-InternetShortcut -path "$dest\Upute i ostali linkovi.url" -url "https://www.unicredit.ba/ba/poduzetnici/proizvodi_i_usluge/internet_bankarstvo2.html#linkovizapreuzimanjeaplikacije_4"
+
+# Write instructions
+@"
+1. Registracija – Prva registracija uredjaja nakon sto dobijete podatke putem Poste + fizicki uredjaj:
+
+   Koristite link: https://www.unicreditbank.ba/ebank/registracija/index.html 
+   ili shortcut: Registracija.
+
+   - Pri vrhu ekrana prihvatite SignErgy aplikaciju.
+   - Unesite vase podatke: ID (AAxxxx) i PIN.
+   - Kliknite dugme "Nastavi", potvrdite vase podatke.
+   - Kliknite dugme "Nastavi", ZAPISITE VASU SIFRU ZA OTKLJUCAVANJE – OVO JE JEDINI PUT KAD JE ONA VIDLjIVA I DOSTUPNA.
+   - Klikajte "Nastavi" dok ne dodjete na 100%, zatim izvadite i vratite USB.
+
+   Nakon 2-3 minute pokusajte pristupiti: https://ebaplus.unicreditbank.ba/ebaPlus/
+
+2. Obnova certifikata:
+
+   Koristite link: https://www.unicreditbank.ba/ebank/reizdavanjeBH/ 
+   ili shortcut: Obnova certifikata.
+
+   - Pri vrhu prihvatite SignErgy.
+   - Kliknite "Nastavi" i pratite korake do 100%.
+   - Na 100%, izvadite USB i nakon 5-10 minuta pokusajte pristupiti.
+
+3. Upute i ostali linkovi:
+
+   Koristite link: 
+   https://www.unicredit.ba/ba/poduzetnici/proizvodi_i_usluge/internet_bankarstvo2.html#linkovizapreuzimanjeaplikacije_4 
+   ili shortcut: Upute i ostali linkovi.
+
+   Svi kontakti, dodatne instalacije i linkovi su tamo dostupni.
+
+   Kontakt email: ebaplus@unicreditgroup.ba
+"@ | Set-Content -Encoding UTF8 -Path "$dest\Upute.txt"
+
+Clear-Host
+
+Write-Host "nHvala na instalaciji ebaPlus Internet Bankarstva UniCredit banke.nInstalacije, upute i dodatni linkovi se nalaze u folderu C:\eba" -ForegroundColor Green
+Start-Sleep -Seconds 10
+exit
