@@ -20,7 +20,7 @@ $keywordGroups = @{
 
 $appFlags = @{}
 $found    = @{}
-
+ 
 # Registry scan
 $uninstallPaths = @(
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
