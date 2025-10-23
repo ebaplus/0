@@ -1,5 +1,5 @@
 # ===============================
-# EbaPlus Automated Installer
+# EbaPlus Automated Installer (SafeNet Only)
 # ===============================
 
 # Versions
@@ -7,7 +7,6 @@ $latestVersions = @{
     "asseco"       = "3.20"
     "safenet"      = "8.3"
     "scmanagement" = "6.3"
-    "activ"        = "7.1"
 }
 
 # Keyword groups
@@ -15,12 +14,11 @@ $keywordGroups = @{
     "asseco"       = @("asseco", "signergy", "unicredit")
     "scmanagement" = @("scmanagement", "e-baplus")
     "safenet"      = @("safenet", "authentication")
-    "activ"        = @("activ", "card")
 }
 
 $appFlags = @{}
 $found    = @{}
- 
+
 # Registry scan
 $uninstallPaths = @(
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
@@ -60,21 +58,6 @@ foreach ($key in $latestVersions.Keys) {
         $appFlags[$key] = "install"
         $found[$key] = "$key - nije pronadjen (install)"
     }
-}
-
-# SafeNet / Activ auto logic
-$safenetInstalled = $appFlags["safenet"] -ne "install"
-$activInstalled   = $appFlags["activ"]   -ne "install"
-
-if ($activInstalled) {
-    $useCard = $true
-    Write-Host "ActivClient detected — installing Card version." -ForegroundColor Cyan
-} elseif ($safenetInstalled) {
-    $useCard = $false
-    Write-Host "SafeNet detected — installing USB version." -ForegroundColor Cyan
-} else {
-    $useCard = $false
-    Write-Host "Neither found — defaulting to USB (SafeNet + SignErgy)." -ForegroundColor Yellow
 }
 
 # ===============================
@@ -140,14 +123,10 @@ Start-BitsTransfer -Source "https://www.unicredit.ba/content/dam/cee2020-pws-bh1
 Expand-Archive -Path "$dest\e-baPlus_SCManagement.zip" -DestinationPath "$dest" -Force
 Remove-Item "$dest\e-baPlus_SCManagement.zip"
 
-# Card or USB support
-if ($useCard) {
-    Invoke-WebRequest -Uri "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/ActivClient%207.1.0%20x64%20FIX168.exe" -OutFile "$dest\ActivClient.exe"
-} else {
-    Start-BitsTransfer -Source "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/SafeNetAuthenticationClient-8-x64-8.3.msi.zip" -Destination "$dest\SafeNetAuthenticationClient.zip"
-    Expand-Archive -Path "$dest\SafeNetAuthenticationClient.zip" -DestinationPath "$dest" -Force
-    Remove-Item "$dest\SafeNetAuthenticationClient.zip"
-}
+# Download SafeNet
+Start-BitsTransfer -Source "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/SafeNetAuthenticationClient-8-x64-8.3.msi.zip" -Destination "$dest\SafeNetAuthenticationClient.zip"
+Expand-Archive -Path "$dest\SafeNetAuthenticationClient.zip" -DestinationPath "$dest" -Force
+Remove-Item "$dest\SafeNetAuthenticationClient.zip"
 
 # Install SignErgy
 $signergyExe = Get-ChildItem -Path $dest -Filter "UniCredit_SignErgy_Installer.exe" -Recurse | Select-Object -First 1
@@ -160,18 +139,9 @@ if ($signergyExe) {
 Write-Host "Installing e-baPlus..." -ForegroundColor Cyan
 Start-Process "$dest\e-baPlus_SCManagement_x64.exe" -ArgumentList "/S /v/qn" -Wait
 
-# Install SafeNet or Activ
-if ($useCard) {
-    Write-Host "Installing ActivClient..." -ForegroundColor Cyan
-    try {
-        Start-Process "$dest\ActivClient.exe" -ArgumentList "/quiet /norestart" -Wait
-    } catch {
-        Write-Host "Molimo dovršite instalaciju ako se pojavi prozor..." -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "Installing SafeNet..." -ForegroundColor Cyan
-    Start-Process "msiexec.exe" -ArgumentList "/i `"$dest\SafeNetAuthenticationClient-8-x64-8.3.msi`" /quiet /norestart" -Wait
-}
+# Install SafeNet
+Write-Host "Installing SafeNet..." -ForegroundColor Cyan
+Start-Process "msiexec.exe" -ArgumentList "/i `"$dest\SafeNetAuthenticationClient-8-x64-8.3.msi`" /quiet /norestart" -Wait
 
 # ===============================
 # Shortcuts & finish
