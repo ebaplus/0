@@ -23,9 +23,9 @@ if ($asseco) {
 }
 
 # Install new version silently
-$setup = Get-ChildItem -Path $dest -Filter "setup.exe" -Recurse | Select-Object -First 1
-if ($setup) {
-    Start-Process $setup.FullName -ArgumentList "/SP- /VERYSILENT /NORESTART /SUPPRESSMSGBOXES" -Wait
+$installer = Get-ChildItem -Path $dest -Filter "UniCredit_SignErgy_Installer.exe" -Recurse | Select-Object -First 1
+if ($installer) {
+    Start-Process $installer.FullName -ArgumentList "/SP- /VERYSILENT /NORESTART /SUPPRESSMSGBOXES" -Wait
     Write-Host "Installation completed."
 } else {
     Write-Host "Installer not found in extracted files."
