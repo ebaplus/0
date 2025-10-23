@@ -1,0 +1,32 @@
+# Create target folder
+$dest = "C:\eba"
+if (-not (Test-Path $dest)) { New-Item -ItemType Directory -Path $dest | Out-Null }
+
+# Download installer ZIP
+$zipPath = "$dest\UniCredit_SignErgy_Installer_new.zip"
+Invoke-WebRequest -Uri "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/UniCredit_SignErgy_Installer_new.zip" -OutFile $zipPath
+
+# Extract it
+Expand-Archive -Path $zipPath -DestinationPath $dest -Force
+Remove-Item $zipPath -Force
+
+# Check for existing Asseco installation
+$asseco = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -match "Asseco" }
+if ($asseco) {
+    if ($asseco.Version -notmatch "^3\.20") {
+        Write-Host "Removing older Asseco version: $($asseco.Version)"
+        $asseco.Uninstall()
+    } else {
+        Write-Host "Asseco 3.20 detected — no action needed."
+        exit
+    }
+}
+
+# Install new version silently
+$setup = Get-ChildItem -Path $dest -Filter "setup.exe" -Recurse | Select-Object -First 1
+if ($setup) {
+    Start-Process $setup.FullName -ArgumentList "/SP- /VERYSILENT /NORESTART /SUPPRESSMSGBOXES" -Wait
+    Write-Host "Installation completed."
+} else {
+    Write-Host "Installer not found in extracted files."
+}
