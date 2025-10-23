@@ -1,25 +1,32 @@
 $choice = Read-Host "Instalacija podrske za Karticu(K) ili za USB(U) [Default: USB]"
 $choice = ($choice + "").ToLower()
 
-$useCard = $false
-switch ($choice) {
-    "k" { $useCard = $true }
-    "c" { $useCard = $true }
-    "kartica" { $useCard = $true }
-    "card" { $useCard = $true }
-    "citac" { $useCard = $true }
-    default { $useCard = $false }
+$useCard = switch ($choice) {
+    "k" { $true }
+    "c" { $true }
+    "kartica" { $true }
+    "card" { $true }
+    "citac" { $true }
+    default { $false }
 }
 
 $dest = "C:\eba"
-New-Item -ItemType Directory -Force -Path $dest
+New-Item -ItemType Directory -Force -Path $dest | Out-Null
 
-Invoke-WebRequest -Uri "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/korporativni_klijenti/Asseco_SignErgy_Unicredit_Installer.exe" -OutFile "$dest\Asseco_SignErgy_Unicredit_Installer.exe"
+# Download NEW SignErgy installer (ZIP)
+$signergyZip = "$dest\UniCredit_SignErgy_Installer_new.zip"
+Invoke-WebRequest -Uri "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/UniCredit_SignErgy_Installer_new.zip" -OutFile $signergyZip
 
+# Extract and cleanup
+Expand-Archive -Path $signergyZip -DestinationPath $dest -Force
+Remove-Item $signergyZip -Force
+
+# Download e-baPlus
 Start-BitsTransfer -Source "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/e-baPlus%20SCManagement_v6.3.1_x64_bin.zip" -Destination "$dest\e-baPlus_SCManagement.zip"
 Expand-Archive -Path "$dest\e-baPlus_SCManagement.zip" -DestinationPath "$dest" -Force
 Remove-Item "$dest\e-baPlus_SCManagement.zip"
 
+# Card or USB support
 if ($useCard) {
     Invoke-WebRequest -Uri "https://www.unicredit.ba/content/dam/cee2020-pws-bh1/Poduzetnici/Proizvodi%20i%20usluge/Dokumenti/ActivClient%207.1.0%20x64%20FIX168.exe" -OutFile "$dest\ActivClient.exe"
 } else {
@@ -28,28 +35,26 @@ if ($useCard) {
     Remove-Item "$dest\SafeNetAuthenticationClient.zip"
 }
 
-$dest = "C:\eba"
-
-# Install Asseco SignErgy silently
-Start-Process "$dest\Asseco_SignErgy_Unicredit_Installer.exe" -ArgumentList "/S /v/qn" -Wait
+# Install SignErgy silently
+$signergyExe = Get-ChildItem -Path $dest -Filter "UniCredit_SignErgy_Installer.exe" -Recurse | Select-Object -First 1
+if ($signergyExe) {
+    Start-Process $signergyExe.FullName -ArgumentList "/SP- /VERYSILENT /NORESTART /SUPPRESSMSGBOXES" -Wait
+}
 
 # Install e-baPlus silently
 Start-Process "$dest\e-baPlus_SCManagement_x64.exe" -ArgumentList "/S /v/qn" -Wait
 
 if ($useCard) {
-    # Try silent install, fallback message if it shows UI
     try {
         Start-Process "$dest\ActivClient.exe" -ArgumentList "/quiet /norestart" -Wait
     } catch {
-        Write-Host "Molimo dovrsite instalaciju ako ju vidite..." -ForegroundColor Yellow
-        Start-Sleep -Seconds 10
+        Write-Host "Molimo dovršite instalaciju ako se pojavi prozor..." -ForegroundColor Yellow
     }
 } else {
-    # Install SafeNetAuthenticationClient silently
-    Start-Process "msiexec.exe" -ArgumentList "/i "$dest\SafeNetAuthenticationClient-8-x64-8.3.msi" /quiet /norestart" -Wait
+    Start-Process "msiexec.exe" -ArgumentList "/i `"$dest\SafeNetAuthenticationClient-8-x64-8.3.msi`" /quiet /norestart" -Wait
 }
 
-# Create desktop shortcut
+# Shortcuts and links
 $desktop = [Environment]::GetFolderPath("Desktop")
 $shortcutPath = "$desktop\e-baPlus.url"
 $url = "https://ebaplus.unicreditbank.ba/ebaPlus/"
@@ -58,25 +63,6 @@ $url = "https://ebaplus.unicreditbank.ba/ebaPlus/"
 URL=$url
 "@ | Set-Content -Encoding ASCII -Path $shortcutPath
 
-Clear-Host
-
-$answer = Read-Host "Da li vam je potrebna registracija? (Da / Ne) [Default: Ne]"
-switch (($answer + "").ToLower()) {
-    ""      { $normalized = "ne" }
-    "d"     { $normalized = "da" }
-    "da"    { $normalized = "da" }
-    "y"     { $normalized = "da" }
-    "yes"   { $normalized = "da" }
-    "n"     { $normalized = "ne" }
-    "no"    { $normalized = "ne" }
-    "ne"    { $normalized = "ne" }
-}
-
-if ($normalized -eq "da") {
-    Start-Process "https://www.unicreditbank.ba/ebank/registracija/index.html"
-}
-
-# Shortcut creator helper
 function New-InternetShortcut {
     param ($path, $url)
     @"
@@ -84,7 +70,6 @@ function New-InternetShortcut {
 URL=$url
 "@ | Set-Content -Encoding ASCII -Path $path
 }
-
 # Create shortcuts in C:\eba
 New-InternetShortcut -path "$dest\Registracija.url" -url "https://www.unicreditbank.ba/ebank/registracija/index.html"
 New-InternetShortcut -path "$dest\Obnova certifikata.url" -url "https://www.unicreditbank.ba/ebank/reizdavanjeBH/"
@@ -127,6 +112,5 @@ New-InternetShortcut -path "$dest\Upute i ostali linkovi.url" -url "https://www.
 
 Clear-Host
 
-Write-Host "nHvala na instalaciji ebaPlus Internet Bankarstva UniCredit banke.nInstalacije, upute i dodatni linkovi se nalaze u folderu C:\eba" -ForegroundColor Green
-Start-Sleep -Seconds 10
-exit
+
+Write-Host "`nInstalacija završena. Sve datoteke i upute se nalaze u C:\eba" -ForegroundColor Green
