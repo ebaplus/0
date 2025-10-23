@@ -80,4 +80,39 @@ elseif ($activStatus -ne "install") {
     $appFlags["safenet"] = "ignore"
 }
 
-# --- (logging section same as before) ---
+# Pokretanje logike
+chcp 65001 > $null
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+Clear-Host
+
+# Header
+Write-Host "==============================" -ForegroundColor Green
+Write-Host " EbaPlus Automatski Installer " -ForegroundColor Green
+Write-Host "==============================" -ForegroundColor Green
+Write-Host ""
+
+# Folder kreacija
+Write-Host -NoNewline "Kreirali smo folder " -ForegroundColor Green
+Write-Host -NoNewline "C:\eba" -ForegroundColor Yellow
+Write-Host " unutar kojeg ce se nalaziti sve potrebne instalacije, upute i linkovi.`n" -ForegroundColor Green
+
+$dest = "C:\eba"
+New-Item -ItemType Directory -Force -Path $dest | Out-Null
+
+# Log inicijalizacija
+$is64Bit = [Environment]::Is64BitOperatingSystem
+$logPath = "$dest\log.txt"
+Add-Content $logPath "`n[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Sistem: $([Int]$is64Bit * 32 + 32)-bitni OS detektovan.`n"
+
+Add-Content $logPath "[INFO] Stanje aplikacija:"
+
+Write-Host "`nDEBUG prikaz detekcije aplikacija:" -ForegroundColor Yellow
+foreach ($entry in $found.GetEnumerator()) {
+    Write-Host "$($entry.Key): $($entry.Value)"
+    Add-Content $logPath " - $($entry.Value)"
+}
+
+Write-Host "`nDEBUG prikaz statusa instalacija:" -ForegroundColor Yellow
+$appFlags.GetEnumerator() | ForEach-Object { Write-Host "$($_.Key): $($_.Value)" }
+
+Write-Host "`nPodaci su upisani u log: $logPath" -ForegroundColor Cyan
